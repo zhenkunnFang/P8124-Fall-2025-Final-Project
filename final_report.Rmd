@@ -7,6 +7,9 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(huge)
+library(igraph)
+library(dplyr)
 ```
 
 ## R Markdown
