@@ -1,5 +1,5 @@
 ---
-title: "final_report"
+title: "Final Project: Graphical Models for ASD Connectivity"
 author: "Zhenkun Fang - zf2352"
 date: "2025-12-16"
 output: pdf_document
@@ -12,22 +12,50 @@ library(igraph)
 library(dplyr)
 ```
 
-## R Markdown
+# Goal and Motivation
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+The scientific goal of this project is to compare the brain connectivity networks of individuals with Autism Spectrum Disorder (ASD) versus Neurotypical (NT) controls. Specifically, I aim to test if the global network density (the proportion of active functional connections) differs significantly between these two groups.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+Characterizing functional connectivity differences is essential for understanding the neurobiology of ASD. Graphical models allow us to move beyond simple correlations and estimate direct interactions (conditional dependence) between brain regions. If ASD brains show consistently higher or lower connectivity density, this could serve as a potential biomarker.
 
-```{r cars}
-summary(cars)
+# Data
+
+```{r include=FALSE}
+pheno = read.csv("phenotypic_CMU.csv")
+label = read.csv("dos160_labels.csv")
 ```
 
-## Including Plots
+The dataset comes from the ABIDE exchange. It contains fMRI timeseries for 27 subjects (14 ASD, 13 Controls) parcellated into 160 regions of interest (ROIs).
 
-You can also embed plots, for example:
+***Exclusions/Preprocessing:***
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+As instructed, we remove the 161st column from the data. We use the phenotypic_CMU.csv file to identify the diagnosis group (DX_GROUP: 1=ASD, 2=Control).
+
+```{r include=FALSE}
+study_data = pheno %>% 
+  select(SUB_ID, DX_GROUP) %>%
+  mutate(Group = ifelse(DX_GROUP == 1, "ASD", "Control"))
+
+head(study_data)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+# Methods
+
+I will compare two methods to estimate the connectivity graphs.
+
+### 1. Gaussian Graphical Model (GGM) via Graphical Lasso
+
+This is the primary method. We assume the data follows a multivariate Gaussian distribution (or non-paranormal). The graph edges represent non-zero entries in the precision matrix (conditional independence).
+
+- Algorithm: We use the Graphical Lasso (glasso) algorithm implemented in the huge package.
+
+- Tuning: We use the Stability Approach to Regularization Selection (StARS) to choose the regularization parameter $\lambda$. StARS is robust for high-dimensional biological data as it selects the sparsest graph that is stable under subsampling (threshold set to 0.1).
+
+
+### 2. 
+
+
+
+
+
+
