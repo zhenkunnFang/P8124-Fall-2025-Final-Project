@@ -52,7 +52,20 @@ This is the primary method. We assume the data follows a multivariate Gaussian d
 - Tuning: We use the Stability Approach to Regularization Selection (StARS) to choose the regularization parameter $\lambda$. StARS is robust for high-dimensional biological data as it selects the sparsest graph that is stable under subsampling (threshold set to 0.1).
 
 
-### 2. 
+### 2. Correlation Thresholding
+
+As a baseline comparison, I will use a marginal independence graph.
+
+- Algorithm: Compute the Pearson correlation matrix and threshold edges where $|r| > 0.3$.
+
+- Interpretation: This does not control for other variables (marginal independence), unlike the GGM.
+
+### Statistical Test
+
+For each subject, I will calculate the Network Density:$$ D = \frac{2E}{p(p-1)} $$where $E$ is the number of edges and $p=160$ is the number of nodes. I will then perform a Two-Sample t-test to compare the mean density between ASD and Control groups.
+
+
+# Results
 
 
 
