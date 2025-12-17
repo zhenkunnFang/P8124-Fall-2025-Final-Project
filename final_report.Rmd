@@ -2,73 +2,220 @@
 title: "Final Project: Graphical Models for ASD Connectivity"
 author: "Zhenkun Fang - zf2352"
 date: "2025-12-16"
-output: pdf_document
+output: 
+  pdf_document:
+    latex_engine: xelatex
+fontsize: 12pt
+geometry: margin=1in
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(huge)
-library(igraph)
 library(dplyr)
+library(ggplot2)
+library(reshape2)
+#install.packages("glasso")
+library(glasso)
 ```
 
 # Goal and Motivation
 
-The scientific goal of this project is to compare the brain connectivity networks of individuals with Autism Spectrum Disorder (ASD) versus Neurotypical (NT) controls. Specifically, I aim to test if the global network density (the proportion of active functional connections) differs significantly between these two groups.
+The human brain acts as a complex system of interacting regions. Modeling these interactions as a graph—where nodes represent regions of interest (ROIs) and edges represent functional connectivity, which allows researchers to understand the organizational principles of neural communication. A key application of these models is distinguishing between neurotypical brain function and identifying alterations associated with conditions such as Autism Spectrum Disorder.
 
-Characterizing functional connectivity differences is essential for understanding the neurobiology of ASD. Graphical models allow us to move beyond simple correlations and estimate direct interactions (conditional dependence) between brain regions. If ASD brains show consistently higher or lower connectivity density, this could serve as a potential biomarker.
+In this project, I estimated functional brain networks using resting-state fMRI time-series data. My analysis has one primary objective:
+
+
+**Group Comparison:** Quantitatively compare the connectivity patterns of ASD subjects versus NT controls to determine if the inter-group differences exceed the natural intra-group variability.
 
 # Data
 
 ```{r include=FALSE}
-pheno = read.csv("phenotypic_CMU.csv")
-label = read.csv("dos160_labels.csv")
+phenotypes = read.csv("data/phenotypic_CMU.csv")
+roi_labels = read.csv("data/dos160_labels.csv")
+file_list = list.files(path = "data", pattern = "dosenbach", full.names = TRUE)
 ```
 
-The dataset comes from the ABIDE exchange. It contains fMRI timeseries for 27 subjects (14 ASD, 13 Controls) parcellated into 160 regions of interest (ROIs).
 
-***Exclusions/Preprocessing:***
+I analyzed resting-state fMRI data from the ABIDE (Autism Brain Imaging Data Exchange) repository. The dataset consists of blood-oxygen-level-dependent (BOLD) signals extracted from 160 Regions of Interest (ROIs) based on the Dosenbach atlas.
 
-As instructed, we remove the 161st column from the data. We use the phenotypic_CMU.csv file to identify the diagnosis group (DX_GROUP: 1=ASD, 2=Control).
+### Data Preprocessing:
+
+I analyzed fMRI time-series data extracted from 160 Regions of Interest (ROIs). The raw data files were processed to ensure correct dimensions (180 timepoints $\times$ 160 ROIs). I calculated the Pearson Correlation Matrix for each subject to represent their functional connectivity.
 
 ```{r include=FALSE}
-study_data = pheno %>% 
-  select(SUB_ID, DX_GROUP) %>%
-  mutate(Group = ifelse(DX_GROUP == 1, "ASD", "Control"))
+subject_cor_matrices = list()
+valid_ids = c()
 
-head(study_data)
+for (file_path in file_list) {
+  file_name = basename(file_path)
+  subject_id = as.integer(regmatches(file_name, regexpr("\\d+", file_name)))
+  
+  try({
+    raw_data = read.table(file_path, header = FALSE)
+    
+    if (ncol(raw_data) == 161) raw_data = raw_data[, 1:160]
+
+    if (ncol(raw_data) == 160) {
+      cor_mat = cor(raw_data)
+      
+      if (nrow(roi_labels) == 160) {
+        colnames(cor_mat) = roi_labels[,1]
+        rownames(cor_mat) = roi_labels[,1]
+      }
+      
+      subject_cor_matrices[[as.character(subject_id)]] = cor_mat
+      valid_ids = c(valid_ids, subject_id)
+    }
+  }, silent = TRUE)
+}
 ```
+
+```{r include=FALSE}
+study_group = phenotypes[phenotypes$SUB_ID %in% valid_ids, ]
+
+asd_ids = study_group$SUB_ID[study_group$DX_GROUP == 1]
+nt_ids  = study_group$SUB_ID[study_group$DX_GROUP == 2]
+
+n_total = length(valid_ids)
+n_asd = length(asd_ids)
+n_nt = length(nt_ids)
+mean_age = round(mean(study_group$AGE_AT_SCAN, na.rm=TRUE), 1)
+sd_age = round(sd(study_group$AGE_AT_SCAN, na.rm=TRUE), 1)
+```
+
 
 # Methods
 
-I will compare two methods to estimate the connectivity graphs.
+### Functional Connectivity
 
-### 1. Gaussian Graphical Model (GGM) via Graphical Lasso
-
-This is the primary method. We assume the data follows a multivariate Gaussian distribution (or non-paranormal). The graph edges represent non-zero entries in the precision matrix (conditional independence).
-
-- Algorithm: We use the Graphical Lasso (glasso) algorithm implemented in the huge package.
-
-- Tuning: We use the Stability Approach to Regularization Selection (StARS) to choose the regularization parameter $\lambda$. StARS is robust for high-dimensional biological data as it selects the sparsest graph that is stable under subsampling (threshold set to 0.1).
+For each subject, I calculated the $160 \times 160$ Pearson correlation matrix ($S$), where each entry $S_{ij}$ represents the marginal linear association between the time-series of ROI $i$ and ROI $j$
 
 
-### 2. Correlation Thresholding
+### Group Comparison Strategy
 
-As a baseline comparison, I will use a marginal independence graph.
+To assess whether ASD and NT subjects exhibit distinct network "signatures," I performed a distance-based analysis:
 
-- Algorithm: Compute the Pearson correlation matrix and threshold edges where $|r| > 0.3$.
+1. Metric: I calculated the Euclidean distance between the vectorized correlation matrices of every pair of subjects.
 
-- Interpretation: This does not control for other variables (marginal independence), unlike the GGM.
+2. Comparison: I divided these pairwise distances into two categories:
 
-### Statistical Test
+- Within-Group: Distance between two ASD subjects OR between two NT subjects.
 
-For each subject, I will calculate the Network Density:$$ D = \frac{2E}{p(p-1)} $$where $E$ is the number of edges and $p=160$ is the number of nodes. I will then perform a Two-Sample t-test to compare the mean density between ASD and Control groups.
+- Between-Group: Distance between one ASD subject and one NT subject.
 
+3. Hypothesis Testing: I performed a two-sample t-test to determine if the Between-Group distances were significantly larger than the Within-Group distances.
 
 # Results
 
+### Average Functional Connectivity
+
+
+```{r, echo=FALSE}
+all_matrices_array = simplify2array(subject_cor_matrices)
+avg_matrix = apply(all_matrices_array, 1:2, mean)
+
+diag(avg_matrix) = NA 
+melted_cormat = melt(avg_matrix, na.rm = TRUE)
+
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), name="Corr") +
+  theme_minimal() + 
+  theme(axis.text = element_blank(),
+        panel.grid = element_blank()) +
+  labs(title="Figure 1. Comparison of Euclidean Distances in Functional Connectivity",
+       x="ROIs (1-160)", y="ROIs (1-160)") 
+```
+
+**Figure 1** shows the average functional connectivity matrix across all subjects, where each cell represents the mean Pearson correlation between the time series of two ROIs out of 160 total ROIs. Warmer colors (red) indicate stronger positive correlations, cooler colors (blue) indicate negative correlations, and white indicates near-zero correlation. 
+
+Overall, the matrix is dominated by light red and near-white values, suggesting that most ROI pairs exhibit weak to moderate positive functional connectivity on average across subjects. Strong negative correlations are rare, indicating that anti-correlated activity between regions is not prominent at the group level.
 
 
 
+### Group Differences (ASD vs. NT)
+
+To quantify the distinctiveness of the groups, I performed a two-sample t-test comparing the distribution of inter-subject distances.
+
+```{r, include=FALSE}
+get_flat_matrix = function(id) {
+  mat = subject_cor_matrices[[as.character(id)]]
+  return(mat[upper.tri(mat)]) 
+}
+
+within_group_dist = c()
+between_group_dist = c()
+all_ids = c(asd_ids, nt_ids)
+
+for (i in 1:(length(all_ids)-1)) {
+  for (j in (i+1):length(all_ids)) {
+    id1 = all_ids[i]; id2 <- all_ids[j]
+    
+    dist_val = sqrt(sum((get_flat_matrix(id1) - get_flat_matrix(id2))^2))
+    
+    is_id1_asd = id1 %in% asd_ids
+    is_id2_asd = id2 %in% asd_ids
+    
+    if ((is_id1_asd && is_id2_asd) || (!is_id1_asd && !is_id2_asd)) {
+      within_group_dist = c(within_group_dist, dist_val)
+    } else {
+      between_group_dist = c(between_group_dist, dist_val)
+    }
+  }
+}
+
+
+t_res = t.test(between_group_dist, within_group_dist, alternative = "greater")
+p_val_str = format.pval(t_res$p.value, digits=3)
+
+mean(within_group_dist)
+mean(between_group_dist)
+
+p_val_str
+```
+
+The analysis compared the mean Euclidean distance between subjects of different groups (ASD vs. NT) against the mean distance between subjects within the same group.
+
+Between-Group Mean Distance: 25.00
+
+Within-Group Mean Distance: 24.92
+
+The t-test yielded a p-value of 0.414. This result is not statistically significant, indicating that the group-level differences are not large enough to overcome the high inter-subject heterogeneity found in this sample.
+
+
+```{r, echo=FALSE}
+plot_data = data.frame(
+  Distance = c(within_group_dist, between_group_dist),
+  Comparison = factor(c(rep("Within Group", length(within_group_dist)),
+                        rep("Between Groups", length(between_group_dist))))
+)
+
+ggplot(plot_data, aes(x=Comparison, y=Distance, fill=Comparison)) + 
+  geom_boxplot() +
+  scale_fill_manual(values=c("#E69F00", "#56B4E9")) +
+  theme_minimal() +
+  labs(title="Figure 2. Heterogeneity Analysis", y="Euclidean Distance")
+```
+
+**Figure 2** display a substantial overlap between the "Within-Group" and "Between-Group" distributions. Visually, the median distance for mixed pairs is similar to the median distance for pairs within the same group. This indicates that the functional connectivity difference between an ASD subject and a control is not noticeably larger than the natural variability found between two neurotypical individuals.
+
+# Discussion
+
+
+### Interpretation of Findings
+
+In this project, I investigated whether functional brain networks could distinguish individuals with Autism Spectrum Disorder (ASD) from Neurotypical (NT) controls. My primary finding—that the topological distance between groups is not significantly larger than the distance within groups—highlights a critical challenge in computational psychiatry known as **heterogeneity**.
+
+These results align with the "idiosyncratic connectivity" hypothesis described in the course readings (e.g., *Dajani et al., 2019*). While ASD is diagnosed behaviorally, the underlying neural mechanisms are likely diverse. Unlike a focal lesion which produces a consistent network disruption, ASD appears to involve subject-specific alterations. 
+
+
+### Limitations
+
+Several limitations should be noted. First, the sample size ($N \approx 27$) is relatively small for high-dimensional fMRI data ($p=160$ ROIs), limiting the statistical power to detect subtle group effects. Second, resting-state fMRI is sensitive to head motion, which can introduce spurious correlations; while the data was preprocessed, strict motion censoring might further refine the results. 
+
+### Conclusion
+
+This analysis demonstrates that Autism Spectrum Disorder does not manifest as a single, uniform disruption of the functional brain network. Instead, the high degree of biological heterogeneity suggests that future research should move beyond case-control averages and toward characterizing the unique connectivity fingerprint of each individual.
 
 
