@@ -20,7 +20,7 @@ library(glasso)
 
 # Goal and Motivation
 
-The human brain acts as a complex system of interacting regions. Modeling these interactions as a graph—where nodes represent regions of interest (ROIs) and edges represent functional connectivity, which allows researchers to understand the organizational principles of neural communication. A key application of these models is distinguishing between neurotypical brain function and identifying alterations associated with conditions such as Autism Spectrum Disorder.
+The human brain acts as a complex system of interacting regions. Modeling these interactions as a graph—where nodes represent regions of interest (ROIs) and edges represent functional connectivity, which allows researchers to understand the organizational principles of neural communication. A key application of these models is distinguishing between neurotypical brain function and identifying alterations associated with conditions such as Autism Spectrum Disorder (ASD).
 
 In this project, I estimated functional brain networks using resting-state fMRI time-series data. My analysis has one primary objective:
 
@@ -200,7 +200,7 @@ ggplot(plot_data, aes(x=Comparison, y=Distance, fill=Comparison)) +
 
 **Figure 2** display a substantial overlap between the "Within-Group" and "Between-Group" distributions. Visually, the median distance for mixed pairs is similar to the median distance for pairs within the same group. This indicates that the functional connectivity difference between an ASD subject and a control is not noticeably larger than the natural variability found between two neurotypical individuals.
 
-# Discussion
+# Conclusion
 
 
 ### Interpretation of Findings
@@ -212,9 +212,8 @@ These results align with the "idiosyncratic connectivity" hypothesis described i
 
 ### Limitations
 
-Several limitations should be noted. First, the sample size ($N \approx 27$) is relatively small for high-dimensional fMRI data ($p=160$ ROIs), limiting the statistical power to detect subtle group effects. Second, resting-state fMRI is sensitive to head motion, which can introduce spurious correlations; while the data was preprocessed, strict motion censoring might further refine the results. 
+Several limitations should be noted. First, the sample size ($N = 27$) is relatively small for high-dimensional fMRI data ($p=160$ ROIs), limiting the statistical power to detect subtle group effects. Second, resting-state fMRI is sensitive to head motion, which can introduce spurious correlations; while the data was preprocessed, strict motion censoring might further refine the results. 
 
-### Conclusion
 
 This analysis demonstrates that Autism Spectrum Disorder does not manifest as a single, uniform disruption of the functional brain network. Instead, the high degree of biological heterogeneity suggests that future research should move beyond case-control averages and toward characterizing the unique connectivity fingerprint of each individual.
 
